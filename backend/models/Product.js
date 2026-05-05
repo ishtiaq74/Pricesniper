@@ -22,9 +22,11 @@ const priceEntrySchema = new mongoose.Schema(
  * Product schema — the core model for PriceSniper.
  *
  * Fields:
+ *  - userId       : Reference to the User who added this product (private tracking)
  *  - url          : The product page URL to scrape.
  *  - title        : Scraped product title.
  *  - image        : Scraped product image URL.
+ *  - currency     : Currency symbol extracted from the scraped price (e.g. $, ₹, ৳).
  *  - currentPrice : Latest scraped price (numeric).
  *  - initialPrice : Price recorded on first add (never updated).
  *  - targetPrice  : User-defined alert threshold.
@@ -32,6 +34,12 @@ const priceEntrySchema = new mongoose.Schema(
  */
 const productSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Product must belong to a user'],
+      index: true,
+    },
     url: {
       type: String,
       required: [true, 'Product URL is required'],
@@ -45,6 +53,11 @@ const productSchema = new mongoose.Schema(
     image: {
       type: String,
       default: '',
+    },
+    currency: {
+      type: String,
+      default: '$',
+      trim: true,
     },
     currentPrice: {
       type: Number,

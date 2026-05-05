@@ -1,26 +1,31 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import AddProductForm from '../components/AddProductForm';
 import ProductCard from '../components/ProductCard';
 
 /**
- * Dashboard – the main (and only) page of PriceSniper.
+ * Dashboard – the main page of PriceSniper.
  *
  * Responsibilities:
- *  - Fetch all tracked products from the backend on mount
+ *  - Fetch the logged-in user's tracked products from the backend
  *  - Pass add / refresh / delete callbacks into child components
  *  - Display a responsive grid of ProductCard components
  *  - Show loading skeletons while fetching
  *  - Show an empty state when no products are tracked
+ *  - Display user profile + logout in the header
  */
 const Dashboard = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [products, setProducts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const { user, logout } = useAuth();
 
   // ── Stats derived from products ───────────────────────────────────────────
   const totalTracked = products.length;
-  const activeDeals = products.filter(
+  const activeDeals  = products.filter(
     (p) => p.targetPrice && p.currentPrice <= p.targetPrice
   ).length;
   const avgSavings =
@@ -45,24 +50,17 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleProductAdded = (newProduct) => {
+  const handleProductAdded = (newProduct) =>
     setProducts((prev) => [newProduct, ...prev]);
-  };
 
-  const handleProductRefreshed = (updatedProduct) => {
-    setProducts((prev) =>
-      prev.map((p) => (p._id === updatedProduct._id ? updatedProduct : p))
-    );
-  };
+  const handleProductRefreshed = (updated) =>
+    setProducts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
 
-  const handleProductDeleted = (deletedId) => {
+  const handleProductDeleted = (deletedId) =>
     setProducts((prev) => prev.filter((p) => p._id !== deletedId));
-  };
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
   const SkeletonCard = () => (
@@ -76,20 +74,28 @@ const Dashboard = () => {
     </div>
   );
 
+  // ── User initials avatar ───────────────────────────────────────────────────
+  const initials = user?.name
+    ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?';
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" onClick={() => profileOpen && setProfileOpen(false)}>
+
       {/* ── Header ── */}
       <header className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+
+          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
                             flex items-center justify-center shadow-lg shadow-brand-500/30">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0
-                  0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0
-                  0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                     0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0
+                     0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
             <div>
@@ -98,25 +104,108 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Live indicator */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow" />
-            Live Tracking
+          {/* Right side: Live indicator + User profile */}
+          <div className="flex items-center gap-4">
+            {/* Live Tracking indicator */}
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
+              <span className="live-dot" />
+              Live Tracking
+            </div>
+
+            {/* User profile button */}
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                id="user-profile-btn"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700
+                           border border-gray-700 hover:border-brand-500/50
+                           rounded-xl px-3 py-2 transition-all duration-200"
+              >
+                {/* Avatar */}
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700
+                                flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  {initials}
+                </div>
+                <span className="hidden sm:block text-sm font-medium text-gray-200 max-w-[120px] truncate">
+                  {user?.name}
+                </span>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown */}
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-60 card shadow-2xl border-gray-700/80 animate-fade-in z-20">
+                  {/* User info */}
+                  <div className="px-4 pt-4 pb-3 border-b border-gray-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
+                                      flex items-center justify-center text-white font-bold">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats mini */}
+                  <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+                    <div className="text-center">
+                      <p className="text-base font-bold text-white">{totalTracked}</p>
+                      <p className="text-xs text-gray-500">Tracked</p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-800" />
+                    <div className="text-center">
+                      <p className="text-base font-bold text-emerald-400">{activeDeals}</p>
+                      <p className="text-xs text-gray-500">Deals Hit</p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-800" />
+                    <div className="text-center">
+                      <p className="text-base font-bold text-brand-400">{avgSavings}</p>
+                      <p className="text-xs text-gray-500">Avg Saved</p>
+                    </div>
+                  </div>
+
+                  {/* Logout */}
+                  <div className="p-2">
+                    <button
+                      id="logout-btn"
+                      onClick={logout}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl
+                                 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10
+                                 transition-all duration-200 font-medium"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       {/* ── Main ── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* Stats Bar */}
         {!loading && (
           <div className="grid grid-cols-3 gap-4 mb-8 animate-fade-in">
             {[
               { label: 'Products Tracked', value: totalTracked, icon: '📦' },
-              { label: 'Active Deals', value: activeDeals, icon: '🎯' },
-              { label: 'Avg. Savings', value: `$${avgSavings}`, icon: '💰' },
+              { label: 'Active Deals',     value: activeDeals,  icon: '🎯' },
+              { label: 'Avg. Savings',     value: avgSavings,   icon: '💰' },
             ].map((stat) => (
-              <div key={stat.label} className="card px-4 py-4 flex items-center gap-4">
+              <div key={stat.label} className="card px-4 py-4 flex items-center gap-4
+                                               hover:border-brand-500/30 transition-colors duration-200">
                 <span className="text-2xl">{stat.icon}</span>
                 <div>
                   <p className="text-xl font-bold text-white">{stat.value}</p>
@@ -137,9 +226,7 @@ const Dashboard = () => {
           <h2 className="text-lg font-semibold text-white">
             Tracked Products
             {totalTracked > 0 && (
-              <span className="ml-2 text-sm font-normal text-gray-500">
-                ({totalTracked})
-              </span>
+              <span className="ml-2 text-sm font-normal text-gray-500">({totalTracked})</span>
             )}
           </h2>
         </div>
@@ -166,12 +253,12 @@ const Dashboard = () => {
         {/* Empty State */}
         {!loading && products.length === 0 && !error && (
           <div className="card flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center mb-4
+                            border border-brand-500/20">
               <svg className="w-8 h-8 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184
-                  1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0
-                  014 0z" />
+                     1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">No products tracked yet</h3>
@@ -198,7 +285,7 @@ const Dashboard = () => {
 
       {/* Footer */}
       <footer className="border-t border-gray-800/60 mt-16 py-6 text-center text-xs text-gray-600">
-        PriceSniper MVP &mdash; Built with MongoDB · Express · React · Node.js
+        PriceSniper &mdash; Built with MongoDB · Express · React · Node.js
       </footer>
     </div>
   );

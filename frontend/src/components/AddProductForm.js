@@ -71,7 +71,7 @@ const AddProductForm = ({ onProductAdded }) => {
           step="0.01"
           min="0"
           className="input-field w-full sm:w-44"
-          placeholder="Target price ($)"
+          placeholder="Target price (e.g. 500)"
           value={targetPrice}
           onChange={(e) => setTargetPrice(e.target.value)}
           disabled={loading}

@@ -3,14 +3,43 @@ const cheerio = require('cheerio');
 const Product = require('../models/Product');
 
 // ---------------------------------------------------------------------------
-// Helper – scrape a product page and extract title, price, and image.
-// Strategy: tries multiple common CSS selectors in priority order so it works
-// on a broad set of e-commerce sites (Amazon, eBay, Daraz, etc.).
+// Helper – extract currency symbol from a raw price string.
+// Checks for common symbols and text codes before falling back to '$'.
+// ---------------------------------------------------------------------------
+const extractCurrency = (raw) => {
+  if (!raw) return '$';
+  const str = raw.toString().trim();
+
+  // Text codes first (longer matches before single-char checks)
+  if (/TK|BDT/i.test(str)) return '৳';
+  if (/INR/i.test(str)) return '₹';
+  if (/USD/i.test(str)) return '$';
+  if (/EUR/i.test(str)) return '€';
+  if (/GBP/i.test(str)) return '£';
+  if (/JPY/i.test(str)) return '¥';
+
+  // Symbol characters
+  if (str.includes('৳')) return '৳';
+  if (str.includes('₹')) return '₹';
+  if (str.includes('€')) return '€';
+  if (str.includes('£')) return '£';
+  if (str.includes('¥')) return '¥';
+  if (str.includes('₩')) return '₩';
+  if (str.includes('₺')) return '₺';
+  if (str.includes('₫')) return '₫';
+  if (str.includes('฿')) return '฿';
+  if (str.includes('$')) return '$';
+
+  return '$';
+};
+
+// ---------------------------------------------------------------------------
+// Helper – scrape a product page and extract title, price, currency, image.
+// Strategy: tries multiple common CSS selectors in priority order.
 // ---------------------------------------------------------------------------
 const scrapeProductData = async (url) => {
   const { data: html } = await axios.get(url, {
     headers: {
-      // Mimic a real browser to avoid bot-detection blocks
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
         '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -37,7 +66,7 @@ const scrapeProductData = async (url) => {
     if (text) { title = text; break; }
   }
 
-  // --- Price ---
+  // --- Price (raw string kept to extract currency) ---
   const priceSelectors = [
     '.a-price .a-offscreen',   // Amazon
     '.a-price-whole',
@@ -48,16 +77,20 @@ const scrapeProductData = async (url) => {
     '.product-price',
     '[itemprop="price"]',
     '.offer-price',
+    '.woocommerce-Price-amount',
   ];
   let priceRaw = '';
   for (const sel of priceSelectors) {
     const el = $(sel).first();
-    // Some elements store price in a content attribute (schema.org)
     const attrPrice = el.attr('content') || el.attr('data-price');
     const textPrice = el.text().trim();
     if (attrPrice) { priceRaw = attrPrice; break; }
     if (textPrice) { priceRaw = textPrice; break; }
   }
+
+  // Extract currency from raw price string
+  const currency = extractCurrency(priceRaw);
+
   // Strip all non-numeric characters except the decimal point
   const price = parseFloat(priceRaw.replace(/[^0-9.]/g, '')) || 0;
 
@@ -93,11 +126,11 @@ const scrapeProductData = async (url) => {
     });
   }
 
-  return { title: title || 'Unknown Product', price, image };
+  return { title: title || 'Unknown Product', price, currency, image };
 };
 
 // ---------------------------------------------------------------------------
-// Controller – Add a new product
+// Controller – Add a new product (protected — requires auth)
 // POST /api/products
 // Body: { url, targetPrice }
 // ---------------------------------------------------------------------------
@@ -106,12 +139,14 @@ const addProduct = async (req, res) => {
     const { url, targetPrice } = req.body;
     if (!url) return res.status(400).json({ message: 'URL is required' });
 
-    const { title, price, image } = await scrapeProductData(url);
+    const { title, price, currency, image } = await scrapeProductData(url);
 
     const product = await Product.create({
+      userId: req.user._id,
       url,
       title,
       image,
+      currency,
       currentPrice: price,
       initialPrice: price,
       targetPrice: targetPrice ? parseFloat(targetPrice) : null,
@@ -126,12 +161,12 @@ const addProduct = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
-// Controller – Get all tracked products
+// Controller – Get all tracked products for the logged-in user
 // GET /api/products
 // ---------------------------------------------------------------------------
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(products);
   } catch (error) {
     console.error('getAllProducts error:', error.message);
@@ -145,13 +180,14 @@ const getAllProducts = async (req, res) => {
 // ---------------------------------------------------------------------------
 const refreshProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findOne({ _id: req.params.id, userId: req.user._id });
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    const { title, price, image } = await scrapeProductData(product.url);
+    const { title, price, currency, image } = await scrapeProductData(product.url);
 
     product.title = title || product.title;
     product.image = image || product.image;
+    product.currency = currency || product.currency;
     product.currentPrice = price;
     product.priceHistory.push({ price, recordedAt: new Date() });
 
@@ -171,8 +207,8 @@ const refreshProduct = async (req, res) => {
 const updateTargetPrice = async (req, res) => {
   try {
     const { targetPrice } = req.body;
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
       { targetPrice: parseFloat(targetPrice) },
       { new: true }
     );
@@ -190,7 +226,7 @@ const updateTargetPrice = async (req, res) => {
 // ---------------------------------------------------------------------------
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {

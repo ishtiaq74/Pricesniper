@@ -7,9 +7,13 @@ const {
   updateTargetPrice,
   deleteProduct,
 } = require('../controllers/scraperController');
+const { protect } = require('../middleware/authMiddleware');
+
+// All product routes require authentication
+router.use(protect);
 
 // @route   GET  /api/products
-// @desc    Get all tracked products
+// @desc    Get all tracked products for the logged-in user
 router.get('/', getAllProducts);
 
 // @route   POST /api/products
