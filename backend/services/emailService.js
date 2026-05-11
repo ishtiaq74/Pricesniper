@@ -44,22 +44,22 @@ const sendPriceAlert = async (toEmail, product) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>PriceSniper Alert</title>
     </head>
-    <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Inter',Arial,sans-serif;color:#f3f4f6;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
+    <body style="margin:0;padding:0;background:#ffffff;font-family:'Inter',Arial,sans-serif;color:#111827;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 20px;">
         <tr>
           <td align="center">
-            <table width="600" cellpadding="0" cellspacing="0" style="background:#111111;border-radius:16px;overflow:hidden;border:1px solid #1f2937;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #e5e7eb;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
               <!-- Header -->
               <tr>
-                <td style="background:linear-gradient(135deg,#FF8C00,#e07a00);padding:28px 32px;">
+                <td style="background:#F97316;padding:32px 40px;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">🎯 PriceSniper</span>
-                        <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.85);">Your smart discount tracker</p>
+                        <span style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">PriceSniper 🎯</span>
+                        <p style="margin:4px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">Your smart discount tracker</p>
                       </td>
                       <td align="right">
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:50px;">PRICE ALERT</span>
+                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:50px;text-transform:uppercase;letter-spacing:0.5px;">Price Alert</span>
                       </td>
                     </tr>
                   </table>
@@ -67,32 +67,32 @@ const sendPriceAlert = async (toEmail, product) => {
               </tr>
               <!-- Body -->
               <tr>
-                <td style="padding:32px;">
-                  <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Great news!</p>
-                  <h1 style="margin:0 0 20px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">
-                    A product you're tracking has hit your target price!
+                <td style="padding:40px;">
+                  <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#F97316;text-transform:uppercase;letter-spacing:1px;">Great news!</p>
+                  <h1 style="margin:0 0 24px;font-size:28px;font-weight:800;color:#111827;line-height:1.2;letter-spacing:-0.5px;">
+                    Target price hit!
                   </h1>
                   <!-- Product Box -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;border:1px solid #2d2d2d;margin-bottom:28px;overflow:hidden;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #f3f4f6;margin-bottom:32px;overflow:hidden;">
                     ${product.image ? `
                     <tr>
-                      <td style="padding:20px;text-align:center;background:#111111;border-bottom:1px solid #2d2d2d;">
-                        <img src="${product.image}" alt="${product.title}" style="max-height:160px;max-width:100%;object-fit:contain;border-radius:8px;" />
+                      <td style="padding:32px;text-align:center;background:#f9fafb;">
+                        <img src="${product.image}" alt="${product.title}" style="max-height:200px;max-width:100%;object-fit:contain;" />
                       </td>
                     </tr>` : ''}
                     <tr>
-                      <td style="padding:20px;">
-                        <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:#f9fafb;line-height:1.4;">${product.title}</p>
+                      <td style="padding:32px;">
+                        <p style="margin:0 0 20px;font-size:16px;font-weight:600;color:#111827;line-height:1.5;">${product.title}</p>
                         <table width="100%" cellpadding="0" cellspacing="0">
                           <tr>
-                            <td style="width:50%;padding:12px;background:#0f0f0f;border-radius:10px;text-align:center;">
-                              <p style="margin:0;font-size:11px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Current Price</p>
-                              <p style="margin:0;font-size:26px;font-weight:800;color:#FF8C00;">${currentPrice}</p>
+                            <td style="width:50%;padding:20px;background:#fef3c7;border-radius:16px;text-align:center;">
+                              <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Current Price</p>
+                              <p style="margin:0;font-size:32px;font-weight:800;color:#F97316;">${currentPrice}</p>
                             </td>
-                            <td style="width:4px;"></td>
-                            <td style="width:50%;padding:12px;background:#0f0f0f;border-radius:10px;text-align:center;">
-                              <p style="margin:0;font-size:11px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Your Target</p>
-                              <p style="margin:0;font-size:26px;font-weight:800;color:#10b981;">${targetPrice}</p>
+                            <td style="width:12px;"></td>
+                            <td style="width:50%;padding:20px;background:#d1fae5;border-radius:16px;text-align:center;">
+                              <p style="margin:0;font-size:12px;font-weight:700;color:#065f46;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Your Target</p>
+                              <p style="margin:0;font-size:32px;font-weight:800;color:#10b981;">${targetPrice}</p>
                             </td>
                           </tr>
                         </table>
@@ -104,7 +104,7 @@ const sendPriceAlert = async (toEmail, product) => {
                     <tr>
                       <td align="center">
                         <a href="${product.url}" target="_blank"
-                           style="display:inline-block;background:linear-gradient(135deg,#FF8C00,#e07a00);color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 36px;border-radius:10px;letter-spacing:0.3px;">
+                           style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;padding:18px 48px;border-radius:14px;letter-spacing:0.3px;box-shadow:0 4px 14px 0 rgba(249,115,22,0.39);">
                           🛒 Buy Now Before It Goes Up
                         </a>
                       </td>
@@ -114,10 +114,10 @@ const sendPriceAlert = async (toEmail, product) => {
               </tr>
               <!-- Footer -->
               <tr>
-                <td style="padding:20px 32px;border-top:1px solid #1f2937;">
-                  <p style="margin:0;font-size:12px;color:#4b5563;text-align:center;">
+                <td style="padding:32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
+                  <p style="margin:0;font-size:13px;color:#6b7280;text-align:center;line-height:1.6;">
                     You're receiving this because you set a target price alert on PriceSniper.<br/>
-                    <a href="${product.url}" style="color:#FF8C00;text-decoration:none;">View Product</a>
+                    <a href="${product.url}" style="color:#F97316;text-decoration:none;font-weight:600;">View Product on Web</a>
                   </p>
                 </td>
               </tr>

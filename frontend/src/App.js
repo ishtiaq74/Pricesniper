@@ -4,13 +4,14 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
+import HomePage from './pages/HomePage';
 
 /**
  * App root – sets up React Router and wraps everything in the AuthProvider.
  *
  * Routes:
- *  /login  → AuthPage (public)
- *  /       → Dashboard (protected – redirects to /login if not authenticated)
+ *  /       → HomePage  (unauthenticated landing) | Dashboard (authenticated)
+ *  /login  → AuthPage  (public sign-in / register)
  *  *       → redirect to /
  */
 function App() {
@@ -22,12 +23,12 @@ function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute fallback={<HomePage />}>
                 <Dashboard />
               </ProtectedRoute>
             }
           />
-          {/* Catch-all: redirect unknown paths to home */}
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

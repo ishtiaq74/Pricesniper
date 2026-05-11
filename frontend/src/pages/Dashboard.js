@@ -3,31 +3,48 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import AddProductForm from '../components/AddProductForm';
 import ProductCard from '../components/ProductCard';
+import { AnnouncementBar, Logo, Footer } from './HomePage';
 
 /**
- * Dashboard – the main page of PriceSniper.
+ * Dashboard – authenticated main page of PriceSniper.
  *
  * Responsibilities:
  *  - Fetch the logged-in user's tracked products from the backend
  *  - Pass add / refresh / delete callbacks into child components
- *  - Display a responsive grid of ProductCard components
+ *  - Display a responsive 2-col grid of ProductCard components
  *  - Show loading skeletons while fetching
  *  - Show an empty state when no products are tracked
- *  - Display user profile + logout in the header
+ *  - Display stat cards (Products Tracked, Active Deals, Avg Savings)
+ *  - Avg Savings card is clickable → expands a deal breakdown panel
+ *  - Navbar shows user avatar pill with profile dropdown
  */
 const Dashboard = () => {
-  const [products, setProducts]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [products, setProducts]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState('');
+  const [profileOpen, setProfileOpen]   = useState(false);
+  const [savingsOpen, setSavingsOpen]   = useState(false);
 
   const { user, logout } = useAuth();
 
-  // ── Stats derived from products ───────────────────────────────────────────
+  /* ── Derived stats ─────────────────────────────────────────────── */
   const totalTracked = products.length;
-  const activeDeals  = products.filter(
+
+  const activeDeals = products.filter(
     (p) => p.targetPrice && p.currentPrice <= p.targetPrice
   ).length;
+
+  const dealsWithSavings = products
+    .filter((p) => p.initialPrice > p.currentPrice)
+    .map((p) => ({
+      _id:          p._id,
+      title:        p.title,
+      initialPrice: p.initialPrice,
+      currentPrice: p.currentPrice,
+      saved:        p.initialPrice - p.currentPrice,
+      currency:     p.currency || '$',
+    }));
+
   const avgSavings =
     products.length > 0
       ? (
@@ -38,7 +55,7 @@ const Dashboard = () => {
         ).toFixed(2)
       : '0.00';
 
-  // ── Fetch all products on mount ────────────────────────────────────────────
+  /* ── Fetch ─────────────────────────────────────────────────────── */
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await axios.get('/api/products');
@@ -52,121 +69,165 @@ const Dashboard = () => {
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleProductAdded = (newProduct) =>
-    setProducts((prev) => [newProduct, ...prev]);
-
-  const handleProductRefreshed = (updated) =>
-    setProducts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
-
-  const handleProductDeleted = (deletedId) =>
-    setProducts((prev) => prev.filter((p) => p._id !== deletedId));
-
-  // ── Loading skeleton ───────────────────────────────────────────────────────
-  const SkeletonCard = () => (
-    <div className="card p-4 animate-pulse">
-      <div className="h-44 bg-gray-800 rounded-xl mb-4" />
-      <div className="h-4 bg-gray-800 rounded w-3/4 mb-2" />
-      <div className="h-3 bg-gray-800 rounded w-1/2 mb-4" />
-      <div className="h-8 bg-gray-800 rounded-xl mb-2" />
-      <div className="h-28 bg-gray-800 rounded-xl mb-3" />
-      <div className="h-10 bg-gray-800 rounded-xl" />
-    </div>
+  /* ── Handlers ──────────────────────────────────────────────────── */
+  const handleProductAdded      = (p)   => setProducts((prev) => [p, ...prev]);
+  const handleProductRefreshed  = (upd) => setProducts((prev) =>
+    prev.map((p) => (p._id === upd._id ? upd : p))
+  );
+  const handleProductDeleted    = (id)  => setProducts((prev) =>
+    prev.filter((p) => p._id !== id)
   );
 
-  // ── User initials avatar ───────────────────────────────────────────────────
+  /* ── Helpers ───────────────────────────────────────────────────── */
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : '?';
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen" onClick={() => profileOpen && setProfileOpen(false)}>
+  /* ── Skeleton card ─────────────────────────────────────────────── */
+  const SkeletonCard = () => (
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden animate-pulse">
+      <div className="h-48 bg-gray-100" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-gray-100 rounded w-3/4" />
+        <div className="h-3 bg-gray-100 rounded w-1/2" />
+        <div className="h-8 bg-gray-100 rounded w-1/3" />
+        <div className="h-1.5 bg-gray-100 rounded-full" />
+        <div className="h-9 bg-gray-100 rounded-xl" />
+      </div>
+    </div>
+  );
 
-      {/* ── Header ── */}
-      <header className="border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+  /* ── Stat cards config ─────────────────────────────────────────── */
+  const stats = [
+    {
+      id:    'stat-tracked',
+      icon:  '📦',
+      value: totalTracked,
+      label: 'Products Tracked',
+      clickable: false,
+    },
+    {
+      id:    'stat-deals',
+      icon:  '🏷️',
+      value: activeDeals,
+      label: 'Active Deals',
+      clickable: false,
+    },
+    {
+      id:    'stat-savings',
+      icon:  '💰',
+      value: `$${avgSavings}`,
+      label: 'Avg. Savings',
+      clickable: true,
+    },
+  ];
+
+  /* ── Render ────────────────────────────────────────────────────── */
+  return (
+    <div
+      className="min-h-screen flex flex-col bg-white"
+      onClick={() => { profileOpen && setProfileOpen(false); }}
+    >
+      {/* Announcement bar */}
+      <AnnouncementBar />
+
+      {/* ── Navbar ── */}
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
-                            flex items-center justify-center shadow-lg shadow-brand-500/30">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0
-                     0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0
-                     0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <Logo />
+
+          {/* Center nav links */}
+          <div className="hidden md:flex items-center gap-7 text-sm font-medium text-gray-600">
+            <a href="#" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">PriceSniper</h1>
-              <p className="text-xs text-gray-500 hidden sm:block">Your smart discount tracker</p>
-            </div>
+              Dashboard
+            </a>
+            <a href="#" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                  d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              My Products
+            </a>
+            <a href="#" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Price History
+            </a>
           </div>
 
-          {/* Right side: Live indicator + User profile */}
-          <div className="flex items-center gap-4">
-            {/* Live Tracking indicator */}
-            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
-              <span className="live-dot" />
+          {/* Right: live badge + user pill */}
+          <div className="flex items-center gap-3">
+            {/* Live tracking */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-emerald-50 border border-emerald-200
+                            text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Live Tracking
             </div>
 
-            {/* User profile button */}
+            {/* User avatar pill */}
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button
                 id="user-profile-btn"
                 onClick={() => setProfileOpen((prev) => !prev)}
-                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700
-                           border border-gray-700 hover:border-brand-500/50
-                           rounded-xl px-3 py-2 transition-all duration-200"
+                className="flex items-center gap-2 border border-gray-200 rounded-full
+                           px-3 py-1.5 hover:border-[#F97316]/50 transition-all duration-200
+                           bg-white shadow-sm"
               >
-                {/* Avatar */}
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700
-                                flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {initials}
+                <div className="w-6 h-6 rounded-full bg-[#F97316] flex items-center justify-center
+                                text-white text-xs font-bold shrink-0">
+                  {initials[0]}
                 </div>
-                <span className="hidden sm:block text-sm font-medium text-gray-200 max-w-[120px] truncate">
-                  {user?.name}
+                <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[100px] truncate">
+                  {user?.name?.split(' ')[0]}
                 </span>
-                <svg className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200
+                               ${profileOpen ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {/* Dropdown */}
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-60 card shadow-2xl border-gray-700/80 animate-fade-in z-20">
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200
+                                rounded-2xl shadow-xl animate-fade-in z-30">
                   {/* User info */}
-                  <div className="px-4 pt-4 pb-3 border-b border-gray-800">
+                  <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
-                                      flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 rounded-full bg-[#F97316] flex items-center
+                                      justify-center text-white font-bold text-sm">
                         {initials}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                        <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Stats mini */}
-                  <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                    <div className="text-center">
-                      <p className="text-base font-bold text-white">{totalTracked}</p>
-                      <p className="text-xs text-gray-500">Tracked</p>
+                  <div className="px-4 py-3 border-b border-gray-100 grid grid-cols-3 text-center">
+                    <div>
+                      <p className="text-base font-bold text-gray-900">{totalTracked}</p>
+                      <p className="text-xs text-gray-400">Tracked</p>
                     </div>
-                    <div className="w-px h-8 bg-gray-800" />
-                    <div className="text-center">
-                      <p className="text-base font-bold text-emerald-400">{activeDeals}</p>
-                      <p className="text-xs text-gray-500">Deals Hit</p>
+                    <div className="border-x border-gray-100">
+                      <p className="text-base font-bold text-emerald-500">{activeDeals}</p>
+                      <p className="text-xs text-gray-400">Deals Hit</p>
                     </div>
-                    <div className="w-px h-8 bg-gray-800" />
-                    <div className="text-center">
-                      <p className="text-base font-bold text-brand-400">{avgSavings}</p>
-                      <p className="text-xs text-gray-500">Avg Saved</p>
+                    <div>
+                      <p className="text-base font-bold text-[#F97316]">${avgSavings}</p>
+                      <p className="text-xs text-gray-400">Avg Saved</p>
                     </div>
                   </div>
 
@@ -176,7 +237,7 @@ const Dashboard = () => {
                       id="logout-btn"
                       onClick={logout}
                       className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl
-                                 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10
+                                 text-sm text-red-500 hover:text-red-600 hover:bg-red-50
                                  transition-all duration-200 font-medium"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -191,51 +252,120 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </header>
+      </nav>
 
       {/* ── Main ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Stats Bar */}
+        {/* ── Stat Cards ── */}
         {!loading && (
-          <div className="grid grid-cols-3 gap-4 mb-8 animate-fade-in">
-            {[
-              { label: 'Products Tracked', value: totalTracked, icon: '📦' },
-              { label: 'Active Deals',     value: activeDeals,  icon: '🎯' },
-              { label: 'Avg. Savings',     value: avgSavings,   icon: '💰' },
-            ].map((stat) => (
-              <div key={stat.label} className="card px-4 py-4 flex items-center gap-4
-                                               hover:border-brand-500/30 transition-colors duration-200">
-                <span className="text-2xl">{stat.icon}</span>
-                <div>
-                  <p className="text-xl font-bold text-white">{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fade-in">
+            {stats.map((stat) => (
+              <div key={stat.id}>
+                <button
+                  id={stat.id}
+                  disabled={!stat.clickable}
+                  onClick={() => stat.clickable && setSavingsOpen((o) => !o)}
+                  className={`w-full text-left bg-white border border-gray-200 rounded-2xl
+                               shadow-sm px-5 py-4 flex items-center gap-4
+                               transition-all duration-200
+                               ${stat.clickable
+                                 ? 'hover:border-[#F97316]/40 hover:shadow-md cursor-pointer'
+                                 : 'cursor-default'}`}
+                >
+                  {/* Icon background */}
+                  <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100
+                                  flex items-center justify-center text-xl shrink-0">
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{stat.label}</p>
+                  </div>
+                  {stat.clickable && (
+                    <svg
+                      className={`w-4 h-4 text-gray-300 ml-auto transition-transform duration-200
+                                   ${savingsOpen ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Savings breakdown panel */}
+                {stat.clickable && savingsOpen && (
+                  <div className="mt-2 bg-white border border-gray-200 rounded-2xl shadow-sm
+                                  overflow-hidden animate-fade-in">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <h3 className="text-sm font-semibold text-gray-700">💸 Deal Breakdown</h3>
+                    </div>
+                    {dealsWithSavings.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-4 py-4 text-center">
+                        No price drops recorded yet.
+                      </p>
+                    ) : (
+                      <ul className="divide-y divide-gray-50">
+                        {dealsWithSavings.map((d) => (
+                          <li key={d._id} className="px-4 py-3 flex items-center justify-between gap-3">
+                            <p className="text-xs font-medium text-gray-700 line-clamp-1 flex-1">
+                              {d.title}
+                            </p>
+                            <div className="flex items-center gap-3 shrink-0 text-xs">
+                              <span className="text-gray-400 line-through">
+                                {d.currency}{d.initialPrice.toFixed(2)}
+                              </span>
+                              <span className="font-bold text-[#F97316]">
+                                {d.currency}{d.currentPrice.toFixed(2)}
+                              </span>
+                              <span className="bg-emerald-50 text-emerald-600 border border-emerald-200
+                                              px-2 py-0.5 rounded-full font-semibold">
+                                −{d.currency}{d.saved.toFixed(2)}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Add Product Form */}
+        {/* ── Add Product Form ── */}
         <div className="mb-8">
           <AddProductForm onProductAdded={handleProductAdded} />
         </div>
 
-        {/* Section Title */}
+        {/* ── Section title ── */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-white">
-            Tracked Products
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            My Tracked Products ⚡
             {totalTracked > 0 && (
-              <span className="ml-2 text-sm font-normal text-gray-500">({totalTracked})</span>
+              <span className="bg-orange-100 text-[#F97316] text-xs font-bold
+                               px-2 py-0.5 rounded-full">
+                {totalTracked}
+              </span>
             )}
           </h2>
+          {totalTracked > 0 && (
+            <a href="#" className="text-sm text-[#F97316] hover:underline font-medium flex items-center gap-1">
+              View all
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          )}
         </div>
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && (
-          <div className="card border-rose-500/30 bg-rose-500/5 px-5 py-4 flex items-center
-                          gap-3 text-rose-400 mb-6 animate-fade-in">
-            <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-red-50 border border-red-200 text-red-500 px-4 py-3 rounded-xl
+                          text-sm flex items-center gap-2 mb-6 animate-fade-in">
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -243,34 +373,31 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Loading Skeletons */}
+        {/* ── Skeletons ── */}
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         )}
 
-        {/* Empty State */}
+        {/* ── Empty state ── */}
         {!loading && products.length === 0 && !error && (
-          <div className="card flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center mb-4
-                            border border-brand-500/20">
-              <svg className="w-8 h-8 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184
-                     1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm
+                          flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-orange-50 border border-orange-100
+                            flex items-center justify-center mb-4 text-3xl">
+              📦
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">No products tracked yet</h3>
-            <p className="text-gray-500 text-sm max-w-xs">
+            <h3 className="text-base font-bold text-gray-900 mb-2">No products tracked yet</h3>
+            <p className="text-gray-400 text-sm max-w-xs">
               Paste any product URL above to start tracking its price and get alerted on drops.
             </p>
           </div>
         )}
 
-        {/* Product Grid */}
+        {/* ── Product Grid ── */}
         {!loading && products.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {products.map((product) => (
               <ProductCard
                 key={product._id}
@@ -283,10 +410,7 @@ const Dashboard = () => {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800/60 mt-16 py-6 text-center text-xs text-gray-600">
-        PriceSniper &mdash; Built with MongoDB · Express · React · Node.js
-      </footer>
+      <Footer />
     </div>
   );
 };

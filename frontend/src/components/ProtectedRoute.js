@@ -1,35 +1,37 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * ProtectedRoute – redirects unauthenticated users to /login.
- * Shows a full-screen loader while the auth state is being resolved
- * (i.e. while verifying an existing token on first load).
+ * ProtectedRoute
+ * If auth is still loading → full-screen loader.
+ * If authenticated → renders children (Dashboard).
+ * If unauthenticated → renders fallback prop (HomePage) if provided, else nothing.
  */
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, fallback = null }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600
-                          flex items-center justify-center shadow-lg shadow-brand-500/40 animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-[#F97316] flex items-center justify-center shadow-lg animate-pulse">
+            {/* crosshair icon */}
             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0
-                   0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0
-                   0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              <circle cx="12" cy="12" r="9" strokeWidth={2} />
+              <line x1="12" y1="3" x2="12" y2="7" strokeWidth={2} strokeLinecap="round" />
+              <line x1="12" y1="17" x2="12" y2="21" strokeWidth={2} strokeLinecap="round" />
+              <line x1="3" y1="12" x2="7" y2="12" strokeWidth={2} strokeLinecap="round" />
+              <line x1="17" y1="12" x2="21" y2="12" strokeWidth={2} strokeLinecap="round" />
+              <circle cx="12" cy="12" r="2" fill="white" strokeWidth={0} />
             </svg>
           </div>
-          <p className="text-gray-500 text-sm">Loading PriceSniper…</p>
+          <p className="text-gray-400 text-sm font-medium">Loading PriceSniper…</p>
         </div>
       </div>
     );
   }
 
-  return user ? children : <Navigate to="/login" replace />;
+  return user ? children : fallback;
 };
 
 export default ProtectedRoute;

@@ -16,6 +16,12 @@ const refreshAllProducts = async () => {
 
   const results = await Promise.allSettled(
     products.map(async (product) => {
+      // Skip orphaned products (created before userId was required)
+      if (!product.userId) {
+        console.warn(`[priceAlertService] ⚠️  Skipping product ${product._id} — no userId (orphaned record).`);
+        return;
+      }
+
       try {
         const { title, price, currency, image } = await scrapeProductData(product.url);
 

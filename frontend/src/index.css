@@ -11,62 +11,78 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-gray-950 text-gray-100 font-sans antialiased;
-    background-image:
-      radial-gradient(ellipse at 20% 20%, rgba(255, 140, 0, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(255, 140, 0, 0.05) 0%, transparent 50%);
+    @apply bg-white text-gray-900 font-sans antialiased;
     min-height: 100vh;
   }
 }
 
 @layer components {
+  /* Card – light, white background with subtle border */
   .card {
-    @apply bg-gray-900 border border-gray-800 rounded-2xl shadow-xl;
+    @apply bg-white border border-gray-200 rounded-2xl shadow-sm;
   }
+
+  /* Primary orange button */
   .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600 active:bg-brand-700
+    @apply bg-[#F97316] hover:bg-orange-600 active:bg-orange-700
            text-white font-semibold px-5 py-2.5 rounded-xl
-           transition-all duration-200 shadow-lg shadow-brand-500/30
-           focus:outline-none focus:ring-2 focus:ring-brand-500/50
+           transition-all duration-200 shadow-sm
+           focus:outline-none focus:ring-2 focus:ring-orange-400/50
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
+  /* Ghost / secondary button */
   .btn-ghost {
-    @apply bg-gray-800 hover:bg-gray-700 active:bg-gray-600
-           text-gray-300 hover:text-white font-medium px-4 py-2 rounded-xl
+    @apply bg-gray-100 hover:bg-gray-200 active:bg-gray-300
+           text-gray-700 hover:text-gray-900 font-medium px-4 py-2 rounded-xl
            transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-gray-500/50;
+           focus:outline-none focus:ring-2 focus:ring-gray-300/50;
   }
+
+  /* Input field – white bg, light border */
   .input-field {
-    @apply w-full bg-gray-800 border border-gray-700 text-gray-100
-           placeholder-gray-500 rounded-xl px-4 py-3
-           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500
+    @apply w-full bg-white border border-gray-200 text-gray-900
+           placeholder-gray-400 rounded-xl px-4 py-3
+           focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-[#F97316]
            transition-all duration-200;
   }
+
+  /* Price drop badge – green */
   .badge-down {
-    @apply inline-flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400
-           border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600
+           border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold;
   }
+
+  /* Price rise badge – red */
   .badge-up {
-    @apply inline-flex items-center gap-1.5 bg-rose-500/15 text-rose-400
-           border border-rose-500/30 px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 bg-red-50 text-red-500
+           border border-red-200 px-3 py-1 rounded-full text-xs font-semibold;
   }
+
+  /* Neutral badge */
   .badge-neutral {
-    @apply inline-flex items-center gap-1.5 bg-gray-700/50 text-gray-400
-           border border-gray-600/30 px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 bg-gray-100 text-gray-500
+           border border-gray-200 px-3 py-1 rounded-full text-xs font-semibold;
   }
+
+  /* Large price display */
   .price-tag {
-    @apply text-2xl font-bold text-brand-400;
+    @apply text-2xl font-bold text-[#F97316];
   }
+
+  /* Skeleton shimmer */
   .shimmer {
-    @apply animate-pulse bg-gray-800 rounded;
+    @apply animate-pulse bg-gray-100 rounded;
   }
+
+  /* Live tracking green dot */
   .live-dot {
-    @apply w-2 h-2 rounded-full bg-brand-500 animate-pulse-slow;
+    @apply w-2 h-2 rounded-full bg-emerald-500 animate-pulse;
   }
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: #FF8C00; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #F97316; }
