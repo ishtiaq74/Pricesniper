@@ -17,13 +17,21 @@ const AddProductForm = ({ onProductAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    // Basic URL sanity check — must start with http:// or https://
+    if (!/^https?:\/\//i.test(trimmed)) {
+      setError('Please enter a full URL starting with https:// or http://');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const { data } = await axios.post('/api/products', {
-        url: url.trim(),
+        url: trimmed,
         targetPrice: targetPrice ? parseFloat(targetPrice) : undefined,
       });
       onProductAdded(data);
@@ -55,13 +63,14 @@ const AddProductForm = ({ onProductAdded }) => {
       {/* URL row */}
       <input
         id="product-url-input"
-        type="url"
+        type="text"
         className="input-field text-sm mb-3"
         placeholder="Paste Amazon product URL..."
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        required
         disabled={loading}
+        autoComplete="off"
+        spellCheck={false}
       />
 
       {/* Target + Submit row */}

@@ -251,11 +251,13 @@ const HeroTrackForm = () => {
         <form onSubmit={handleSnipe} className="flex flex-col gap-3">
           <input
             id="hero-url-input"
-            type="url"
+            type="text"
             className="input-field text-sm"
             placeholder="Paste Amazon product URL..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
           />
           <div className="flex gap-2">
             <input

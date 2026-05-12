@@ -29,7 +29,15 @@ const addProduct = async (req, res) => {
     res.status(201).json(product);
   } catch (error) {
     console.error('addProduct error:', error.message);
-    res.status(500).json({ message: 'Failed to add product', error: error.message });
+    // Surface the scraper's specific error to the client
+    const userMsg = error.message.includes('404')
+      ? 'Product not found — check the URL is correct and the product is available in your region.'
+      : error.message.includes('bot-detection') || error.message.includes('403')
+        ? 'The website blocked our scraper. Please try again in a moment.'
+        : error.message.includes('after 3 attempts')
+          ? error.message.replace('Failed to fetch', 'Could not reach')
+          : error.message;
+    res.status(500).json({ message: userMsg });
   }
 };
 
@@ -68,7 +76,12 @@ const refreshProduct = async (req, res) => {
     res.status(200).json(product);
   } catch (error) {
     console.error('refreshProduct error:', error.message);
-    res.status(500).json({ message: 'Failed to refresh product', error: error.message });
+    const userMsg = error.message.includes('404')
+      ? 'Product page returned 404 — the listing may have been removed.'
+      : error.message.includes('after 3 attempts')
+        ? 'Could not reach the product page after multiple retries. Try again later.'
+        : error.message;
+    res.status(500).json({ message: userMsg });
   }
 };
 
