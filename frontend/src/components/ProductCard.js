@@ -58,11 +58,16 @@ const convertPrice = (price, scrapedSymbol, selectedCurrency, rates) => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) => {
+const ProductCard = ({ product, onRefresh, onDelete, onTargetUpdate, selectedCurrency, rates }) => {
   const [refreshing, setRefreshing]     = useState(false);
   const [deleting, setDeleting]         = useState(false);
   const [imgError, setImgError]         = useState(false);
   const [historyOpen, setHistoryOpen]   = useState(false);
+
+  // Inline target price editor state
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [newTarget, setNewTarget]         = useState('');
+  const [targetSaving, setTargetSaving]   = useState(false);
 
   // Feature 2 — Compare state
   const [compareOpen, setCompareOpen]   = useState(false);
@@ -106,6 +111,25 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
     converted !== null &&
     (SYMBOL_TO_ISO[sym] || 'USD') !== selectedCurrency;
 
+  // Converted target price (for display + pre-filling the editor)
+  const convertedTarget = useMemo(
+    () => (hasTarget && targetPrice > 0) ? convertPrice(targetPrice, sym, selectedCurrency, rates) : null,
+    [targetPrice, sym, selectedCurrency, rates, hasTarget]
+  );
+  const showTargetConversion =
+    convertedTarget !== null &&
+    (SYMBOL_TO_ISO[sym] || 'USD') !== selectedCurrency;
+
+  // Currency symbol to show inside the target price input
+  const targetInputSym = showTargetConversion
+    ? (CURRENCY_SYMBOLS[selectedCurrency] || selectedCurrency)
+    : sym;
+
+  // Human-readable target price string in the display currency
+  const targetDisplayStr = showTargetConversion && convertedTarget
+    ? `${convertedTarget.displaySym}${convertedTarget.displayPrice.toFixed(2)}`
+    : hasTarget ? `${sym}${targetPrice?.toFixed(2)}` : null;
+
   /* ── API Handlers ── */
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -128,6 +152,33 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
     } catch (err) {
       console.error('Delete failed:', err.message);
       setDeleting(false);
+    }
+  };
+
+  /* ── Target price save handler (converts display currency → native) ── */
+  const handleTargetSave = async () => {
+    const display = parseFloat(newTarget);
+    if (!display || display <= 0) return;
+
+    // Convert entered amount from selectedCurrency → product's native currency
+    let nativePrice = display;
+    if (rates && showTargetConversion) {
+      const fromISO  = SYMBOL_TO_ISO[sym] || 'USD';
+      const fromRate = rates[fromISO] || 1;
+      const toRate   = rates[selectedCurrency] || 1;
+      nativePrice = (display / toRate) * fromRate;
+    }
+
+    setTargetSaving(true);
+    try {
+      const { data } = await axios.put(`/api/products/${_id}/target`, { targetPrice: nativePrice });
+      if (onTargetUpdate) onTargetUpdate(data);
+      setEditingTarget(false);
+      setNewTarget('');
+    } catch (err) {
+      console.error('Target update failed:', err.message);
+    } finally {
+      setTargetSaving(false);
     }
   };
 
@@ -202,11 +253,11 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
           </div>
         )}
 
-        {/* Above-target badge */}
+        {/* Above-target badge — shows target in display currency if conversion available */}
         {isAboveTarget && !isDropped && (
           <div className="absolute top-2 right-2 bg-red-400 text-white
                           text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
-            {sym}{targetPrice?.toFixed(2)} target
+            {targetDisplayStr || `${sym}${targetPrice?.toFixed(2)}`} target
           </div>
         )}
       </div>
@@ -269,11 +320,16 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
           </div>
         )}
 
-        {/* Price-to-target progress bar */}
+        {/* Price-to-target progress bar — target shown in selected display currency */}
         {hasTarget && (
           <div className="mt-1">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Target: {sym}{targetPrice?.toFixed(2)}</span>
+              <span className="flex items-center gap-1">
+                Target: <span className="font-medium text-gray-600">{targetDisplayStr}</span>
+                {showTargetConversion && (
+                  <span className="text-gray-300">({sym}{targetPrice?.toFixed(2)})</span>
+                )}
+              </span>
               <span>{progressPct}%</span>
             </div>
             <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -283,6 +339,69 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
               />
             </div>
           </div>
+        )}
+
+        {/* ── Inline Target Price Editor ── */}
+        {editingTarget ? (
+          <div className="flex items-center gap-2 mt-2 animate-fade-in">
+            <div className="relative flex-1">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+                {targetInputSym}
+              </span>
+              <input
+                id={`target-edit-input-${_id}`}
+                type="number"
+                step="0.01"
+                min="0"
+                className="w-full pl-6 pr-2 py-1.5 text-sm border border-[#F97316]/40 rounded-xl
+                           focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+                placeholder="Enter target"
+                value={newTarget}
+                onChange={(e) => setNewTarget(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleTargetSave();
+                  if (e.key === 'Escape') { setEditingTarget(false); setNewTarget(''); }
+                }}
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={handleTargetSave}
+              disabled={targetSaving}
+              className="text-xs font-semibold text-white bg-[#F97316] px-3 py-1.5 rounded-xl
+                         hover:bg-orange-600 transition-colors disabled:opacity-50 shrink-0"
+            >
+              {targetSaving ? '…' : 'Set'}
+            </button>
+            <button
+              onClick={() => { setEditingTarget(false); setNewTarget(''); }}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            id={`set-target-btn-${_id}`}
+            onClick={() => {
+              setEditingTarget(true);
+              // Pre-fill with current target in display currency
+              if (hasTarget) {
+                const prefill = showTargetConversion && convertedTarget
+                  ? convertedTarget.displayPrice
+                  : targetPrice;
+                setNewTarget(prefill.toFixed(2));
+              }
+            }}
+            className="w-full text-xs text-gray-400 hover:text-[#F97316] transition-colors
+                       text-left mt-1 flex items-center gap-1 group"
+          >
+            <svg className="w-3 h-3 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {hasTarget ? `Edit target (${targetInputSym})` : `Set target price (${targetInputSym})`}
+          </button>
         )}
 
         {/* ── Actions ── */}
@@ -375,11 +494,7 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
             {/* Results */}
             {!compareLoading && compareResults !== null && (
               <div className="border border-gray-100 rounded-xl overflow-hidden">
-                {compareResults.length === 0 ? (
-                  <p className="text-xs text-gray-400 px-4 py-4 text-center">
-                    No comparison results found.
-                  </p>
-                ) : (
+                {compareResults.length > 0 ? (
                   <ul className="divide-y divide-gray-50">
                     {compareResults.map((result, idx) => (
                       <li key={idx} className="px-3 py-2.5 flex items-start justify-between gap-2">
@@ -402,6 +517,46 @@ const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) 
                       </li>
                     ))}
                   </ul>
+                ) : (
+                  /* Fallback: shopping comparison links (always useful) */
+                  <div className="p-3">
+                    <p className="text-xs text-gray-400 mb-2 font-medium">Search across stores:</p>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        {
+                          label: '🛒 Amazon',
+                          href: `https://www.amazon.com/s?k=${encodeURIComponent(title)}`,
+                        },
+                        {
+                          label: '🛍️ Google Shopping',
+                          href: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(title)}`,
+                        },
+                        {
+                          label: '🔨 eBay',
+                          href: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(title)}`,
+                        },
+                        {
+                          label: '🛒 Daraz',
+                          href: `https://www.daraz.com.bd/catalog/?q=${encodeURIComponent(title)}`,
+                        },
+                      ].map((s) => (
+                        <a
+                          key={s.label}
+                          href={s.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg
+                                     bg-gray-50 hover:bg-orange-50 hover:border-[#F97316]/20
+                                     border border-gray-100 transition-all duration-200 group"
+                        >
+                          <span className="text-xs font-medium text-gray-600 group-hover:text-gray-800">
+                            {s.label}
+                          </span>
+                          <span className="text-xs text-[#F97316] font-semibold">Search →</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

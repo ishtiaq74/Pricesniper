@@ -33,8 +33,8 @@ const searchProduct = async (title) => {
       params: {
         key: apiKey,
         cx,
-        q:   encodeURIComponent(query),
-        num: 5, // max results
+        q:   query,   // axios params auto-encodes — do NOT wrap in encodeURIComponent
+        num: 5,
       },
       timeout: 10000,
     });
@@ -47,8 +47,15 @@ const searchProduct = async (title) => {
       displayLink: item.displayLink || '',
     }));
   } catch (err) {
-    console.error('[searchService] Google Custom Search failed:', err.message);
-    return []; // never crash the caller
+    // Log the actual Google error body so the developer can act on it
+    const googleMsg = err.response?.data?.error?.message || err.message;
+    const googleStatus = err.response?.status || 'network error';
+    console.error(`[searchService] Google Custom Search failed [${googleStatus}]: ${googleMsg}`);
+
+    if (err.response?.status === 403) {
+      console.error('[searchService] 403 Fix → Go to https://console.cloud.google.com/apis/library/customsearch.googleapis.com and ENABLE the Custom Search API for your project, then ensure your API key has no restrictions blocking it.');
+    }
+    return [];
   }
 };
 

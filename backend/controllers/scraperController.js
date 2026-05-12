@@ -95,7 +95,7 @@ const updateTargetPrice = async (req, res) => {
     const { targetPrice } = req.body;
     const product = await Product.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      { targetPrice: parseFloat(targetPrice) },
+      { targetPrice: parseFloat(targetPrice), alertSentAt: null }, // reset cooldown so alert fires on next check
       { new: true }
     );
     if (!product) return res.status(404).json({ message: 'Product not found' });

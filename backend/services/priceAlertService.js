@@ -2,8 +2,7 @@ const Product             = require('../models/Product');
 const { sendPriceAlert }  = require('./emailService');
 const { scrapeProductData } = require('./scraperService');
 
-// Tracks the last alert time per product to avoid spam (once per 24h)
-const lastAlertSent = new Map(); // productId → timestamp
+const TWENTY_FOUR_HRS = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // refreshAllProducts
@@ -61,8 +60,7 @@ const checkAndSendAlerts = async () => {
     await refreshAllProducts();
 
     // Step 2: find products that now meet the alert condition
-    const now             = Date.now();
-    const TWENTY_FOUR_HRS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
 
     const alertProducts = await Product.find({
       targetPrice:  { $gt: 0 },
@@ -77,8 +75,9 @@ const checkAndSendAlerts = async () => {
     // Step 3: send alerts
     for (const product of alertProducts) {
       const pid      = product._id.toString();
-      const lastSent = lastAlertSent.get(pid) || 0;
 
+      // Cooldown check — use DB-persisted alertSentAt (survives restarts, unique per product)
+      const lastSent = product.alertSentAt ? new Date(product.alertSentAt).getTime() : 0;
       if (now - lastSent < TWENTY_FOUR_HRS) {
         console.log(`[priceAlertService] ⏭  Skipping ${pid} — alert already sent within 24 h.`);
         continue;
@@ -91,7 +90,9 @@ const checkAndSendAlerts = async () => {
 
       try {
         await sendPriceAlert(product.userId.email, product);
-        lastAlertSent.set(pid, now);
+        // Persist timestamp to DB so cooldown survives server restarts
+        product.alertSentAt = new Date();
+        await product.save();
         console.log(`[priceAlertService] 📧 Alert sent for "${product.title.slice(0, 40)}…"`);
       } catch (emailErr) {
         console.error(

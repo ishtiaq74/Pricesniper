@@ -71,6 +71,10 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    alertSentAt: {
+      type: Date,
+      default: null, // null = never sent; set to Date.now() after each alert
+    },
     priceHistory: {
       type: [priceEntrySchema],
       default: [],

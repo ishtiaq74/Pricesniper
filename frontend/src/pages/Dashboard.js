@@ -99,6 +99,9 @@ const Dashboard = () => {
   const handleProductRefreshed  = (upd) => setProducts((prev) =>
     prev.map((p) => (p._id === upd._id ? upd : p))
   );
+  const handleProductTargetUpdated = (upd) => setProducts((prev) =>
+    prev.map((p) => (p._id === upd._id ? upd : p))
+  );
   const handleProductDeleted    = (id)  => setProducts((prev) =>
     prev.filter((p) => p._id !== id)
   );
@@ -450,6 +453,7 @@ const Dashboard = () => {
                 product={product}
                 onRefresh={handleProductRefreshed}
                 onDelete={handleProductDeleted}
+                onTargetUpdate={handleProductTargetUpdated}
                 selectedCurrency={selectedCurrency}
                 rates={rates}
               />

@@ -85,6 +85,8 @@ const fetchHtml = async (url, attempt = 1) => {
     aliexpress:'https://www.aliexpress.com/',
     ebay:      'https://www.ebay.com/',
     walmart:   'https://www.walmart.com/',
+    daraz:     'https://www.daraz.com/',
+    othoba:    'https://othoba.com/',
     generic:   url,
   };
 
@@ -149,10 +151,100 @@ const extractFromInlineScript = ($, keys) => {
 // ---------------------------------------------------------------------------
 // Main scraper function
 // ---------------------------------------------------------------------------
-const scrapeProductData = async (url) => {
+const scrapeProductData = async (rawUrl) => {
   await randomDelay();
 
-  const { html, platform } = await fetchHtml(url);
+  // ── URL sanitisation ────────────────────────────────────────────────────────
+  // eBay /itm/ listings include long tracking params (itmprp, itmmeta, hash)
+  // that trigger eBay's 403 bot-detection. Strip everything after the item ID.
+  let url = rawUrl;
+  if (url.includes('ebay.') && /\/itm\/\d+/.test(url)) {
+    const itemId = url.match(/\/itm\/(\d+)/)?.[1];
+    if (itemId) {
+      // Keep only the host + /itm/{id}  (e.g. ebay.com/itm/375557451028)
+      const host = url.match(/https?:\/\/[^/]+/)?.[0] || 'https://www.ebay.com';
+      url = `${host}/itm/${itemId}`;
+      console.log(`[scraperService] eBay URL cleaned: ${url}`);
+    }
+  }
+
+  // ── Fetch HTML ───────────────────────────────────────────────────────────────
+  let html, platform;
+
+  // eBay /itm/ pages — eBay blocks all HTML scraping on /itm/ listings.
+  // Use the free eBay Shopping API (GetSingleItem) first; fall back to HTML scraping.
+  if (url.includes('ebay.') && /\/itm\/\d+/.test(url)) {
+    const itemId   = url.match(/\/itm\/(\d+)/)?.[1];
+    const ebayAppId = process.env.EBAY_APP_ID;
+
+    if (ebayAppId && ebayAppId !== 'your_ebay_app_id_here') {
+      // ── eBay Shopping API ────────────────────────────────────────────────────
+      // Free, no OAuth needed. Get a key at https://developer.ebay.com
+      try {
+        console.log(`[scraperService] eBay Shopping API → itemId=${itemId}`);
+        const { data } = await axios.get('https://open.api.ebay.com/shopping', {
+          params: {
+            callname:         'GetSingleItem',
+            responseencoding: 'JSON',
+            appid:            ebayAppId,
+            siteid:           '0',
+            version:          '967',
+            ItemID:           itemId,
+            IncludeSelector:  'Details,ItemSpecifics',
+          },
+          timeout: 15000,
+        });
+
+        const item = data?.Item;
+        if (item) {
+          const apiTitle    = item.Title         || '';
+          const apiPrice    = item.ConvertedCurrentPrice?.Value
+                           || item.CurrentPrice?.Value
+                           || 0;
+          const apiCurrency = item.ConvertedCurrentPrice?.CurrencyID === 'USD' ? '$'
+                           : (item.CurrentPrice?.CurrencyID || '$');
+          const apiImage    = item.PictureURL?.[0] || item.GalleryURL || '';
+
+          console.log(`[scraperService] eBay API success: "${apiTitle}" ${apiCurrency}${apiPrice}`);
+          return {
+            title:    apiTitle || 'Unknown Product',
+            price:    parseFloat(apiPrice) || 0,
+            currency: apiCurrency,
+            image:    apiImage,
+          };
+        }
+      } catch (apiErr) {
+        console.warn(`[scraperService] eBay API failed: ${apiErr.message} — falling back to HTML`);
+      }
+    }
+
+    // ── HTML fallback for /itm/ (best-effort, likely blocked) ────────────────
+    let lastErr;
+    for (const variant of [url, `https://m.ebay.com/itm/${itemId}`]) {
+      try {
+        console.log(`[scraperService] eBay HTML fallback: ${variant}`);
+        const result = await fetchHtml(variant);
+        html     = result.html;
+        platform = result.platform;
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    if (!html) {
+      throw new Error(
+        'eBay blocked this listing page. ' +
+        'Add EBAY_APP_ID to your .env (free key at developer.ebay.com) for reliable eBay scraping, ' +
+        'or use the catalog page URL (ebay.com/p/...) instead of an individual listing (ebay.com/itm/...).'
+      );
+    }
+  } else {
+    const result = await fetchHtml(url);
+    html     = result.html;
+    platform = result.platform;
+  }
+
   const $ = cheerio.load(html);
 
   // ── Title ─────────────────────────────────────────────────────────────────
