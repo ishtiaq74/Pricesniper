@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import AddProductForm from '../components/AddProductForm';
@@ -175,13 +176,13 @@ const Dashboard = () => {
               </svg>
               Dashboard
             </a>
-            <a href="#" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
+            <Link to="/products" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
                   d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
               My Products
-            </a>
+            </Link>
             <a href="#" className="hover:text-[#F97316] transition-colors flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
@@ -400,13 +401,13 @@ const Dashboard = () => {
             )}
           </h2>
           {totalTracked > 0 && (
-            <a href="#" className="text-sm text-[#F97316] hover:underline font-medium flex items-center gap-1">
+            <Link to="/products" className="text-sm text-[#F97316] hover:underline font-medium flex items-center gap-1">
               View all
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-            </a>
+            </Link>
           )}
         </div>
 

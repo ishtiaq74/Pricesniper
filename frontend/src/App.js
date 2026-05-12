@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
+import MyProductsPage from './pages/MyProductsPage';
 
 /**
  * App root – sets up React Router and wraps everything in the AuthProvider.
@@ -25,6 +26,15 @@ function App() {
             element={
               <ProtectedRoute fallback={<HomePage />}>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          {/* /products — protected */}
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute fallback={<HomePage />}>
+                <MyProductsPage />
               </ProtectedRoute>
             }
           />
