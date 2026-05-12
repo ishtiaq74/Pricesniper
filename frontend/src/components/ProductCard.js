@@ -1,24 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import axios from 'axios';
 import PriceChart from './PriceChart';
 
 /**
  * ProductCard
  * Redesigned for the new light-theme UI.
- * - Colored % drop badge top-left (green)
- * - "All-time low" badge top-right (green) when isBelowTarget
- * - Current price large bold orange, initial price struck through
- * - Green savings pill
- * - Orange progress bar (current → target)
- * - Expandable "Price History" section
  *
- * All API logic (refresh, delete) unchanged.
+ * New in this version:
+ *  Feature 1 — Currency Conversion
+ *    - Accepts `selectedCurrency` (e.g. "BDT") and `rates` ({ USD:1, BDT:110, ... })
+ *    - Displays converted price in orange bold; original scraped price struck through in gray
+ *    - Conversion is display-only — stored prices in MongoDB are never modified
+ *
+ *  Feature 2 — Product Comparison (Google Custom Search)
+ *    - "Compare Prices 🔍" button below the price history section
+ *    - Results cached in component state — re-click does NOT re-fetch
+ *    - Up to 5 results shown in an expandable panel (displayLink, snippet, "View →")
  */
-const ProductCard = ({ product, onRefresh, onDelete }) => {
+
+// ── Currency helpers ──────────────────────────────────────────────────────────
+
+/** ISO code → display symbol map for the currencies we support */
+const CURRENCY_SYMBOLS = {
+  USD: '$', BDT: '৳', INR: '₹', EUR: '€', GBP: '£',
+  JPY: '¥', CAD: 'CA$', AUD: 'A$', KRW: '₩', TRY: '₺',
+};
+
+/**
+ * Convert a price from its scraped currency to the user's selected display currency.
+ * Returns { displayPrice, displaySym } — or null if rates aren't loaded yet.
+ *
+ * Strategy: all rates are relative to USD (from ExchangeRate-API /latest/USD).
+ *   1. Map scraped currency symbol → ISO code
+ *   2. Convert scraped price to USD first
+ *   3. Then convert USD → selectedCurrency
+ */
+const SYMBOL_TO_ISO = {
+  '$': 'USD', '৳': 'BDT', '₹': 'INR', '€': 'EUR',
+  '£': 'GBP', '¥': 'JPY', '₩': 'KRW', '₺': 'TRY',
+  'Rs': 'LKR',
+};
+
+const convertPrice = (price, scrapedSymbol, selectedCurrency, rates) => {
+  if (!rates || !price || price <= 0) return null;
+
+  const fromISO = SYMBOL_TO_ISO[scrapedSymbol] || 'USD';
+  const fromRate = rates[fromISO] || 1;
+  const toRate   = rates[selectedCurrency] || 1;
+
+  // price (in fromISO) → USD → selectedCurrency
+  const converted = (price / fromRate) * toRate;
+  return {
+    displayPrice: converted,
+    displaySym:   CURRENCY_SYMBOLS[selectedCurrency] || selectedCurrency,
+  };
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+const ProductCard = ({ product, onRefresh, onDelete, selectedCurrency, rates }) => {
   const [refreshing, setRefreshing]     = useState(false);
   const [deleting, setDeleting]         = useState(false);
   const [imgError, setImgError]         = useState(false);
   const [historyOpen, setHistoryOpen]   = useState(false);
+
+  // Feature 2 — Compare state
+  const [compareOpen, setCompareOpen]   = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareResults, setCompareResults] = useState(null); // null = not fetched yet
 
   const {
     _id, title, image, url,
@@ -38,14 +87,24 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
   const isBelowTarget = hasTarget && currentPrice <= targetPrice;
   const isAboveTarget = hasTarget && currentPrice > targetPrice;
 
-  // Progress bar: how close is currentPrice to targetPrice?
-  // 100% = at or below target, 0% = at initialPrice
+  // Progress bar
   const progressPct = hasTarget && initialPrice > targetPrice
     ? Math.min(
         100,
         Math.max(0, ((initialPrice - currentPrice) / (initialPrice - targetPrice)) * 100)
       ).toFixed(0)
     : 0;
+
+  // ── Feature 1: Converted price ───────────────────────────────────────────
+  const converted = useMemo(
+    () => convertPrice(currentPrice, sym, selectedCurrency, rates),
+    [currentPrice, sym, selectedCurrency, rates]
+  );
+
+  // Only show the conversion row when the display currency differs from the scraped one
+  const showConversion =
+    converted !== null &&
+    (SYMBOL_TO_ISO[sym] || 'USD') !== selectedCurrency;
 
   /* ── API Handlers ── */
   const handleRefresh = async () => {
@@ -69,6 +128,30 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
     } catch (err) {
       console.error('Delete failed:', err.message);
       setDeleting(false);
+    }
+  };
+
+  /* ── Feature 2: Compare handler ── */
+  const handleCompare = async () => {
+    // Toggle panel closed if already open
+    if (compareOpen) { setCompareOpen(false); return; }
+
+    setCompareOpen(true);
+
+    // Results cached in state — don't re-fetch
+    if (compareResults !== null) return;
+
+    setCompareLoading(true);
+    try {
+      const { data } = await axios.get(
+        `/api/products/search?q=${encodeURIComponent(title)}`
+      );
+      setCompareResults(data.results || []);
+    } catch (err) {
+      console.error('Compare search failed:', err.message);
+      setCompareResults([]);
+    } finally {
+      setCompareLoading(false);
     }
   };
 
@@ -100,7 +183,7 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
           </div>
         )}
 
-        {/* % drop badge — top left (green) */}
+        {/* % drop badge — top left */}
         {isDropped && (
           <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500 text-white
                           text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
@@ -111,7 +194,7 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
           </div>
         )}
 
-        {/* All-time low badge — top right (green) */}
+        {/* All-time low badge — top right */}
         {isBelowTarget && (
           <div className="absolute top-2 right-2 bg-emerald-500 text-white
                           text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
@@ -130,6 +213,7 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
 
       {/* ── Body ── */}
       <div className="flex flex-col flex-1 p-4 gap-2.5">
+
         {/* Title */}
         <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
           {title}
@@ -145,17 +229,31 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
           {url.length > 50 ? url.slice(0, 50) + '…' : url}
         </a>
 
-        {/* Prices */}
+        {/* ── Prices (Feature 1) ── */}
         <div className="flex items-end gap-2 mt-0.5">
-          <p className="text-2xl font-bold text-[#F97316]">
-            {currentPrice > 0 ? `${sym}${currentPrice.toFixed(2)}` : 'N/A'}
-          </p>
-          {initialPrice > 0 && (
+          {showConversion ? (
+            /* Converted price (orange bold) + original struck through */
+            <div className="flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-[#F97316]">
+                {converted.displaySym}{converted.displayPrice.toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-400 line-through leading-none">
+                {currentPrice > 0 ? `${sym}${currentPrice.toFixed(2)} original` : 'N/A'}
+              </p>
+            </div>
+          ) : (
+            /* No conversion needed — show scraped price as-is */
+            <p className="text-2xl font-bold text-[#F97316]">
+              {currentPrice > 0 ? `${sym}${currentPrice.toFixed(2)}` : 'N/A'}
+            </p>
+          )}
+
+          {initialPrice > 0 && !showConversion && (
             <p className="text-sm text-gray-400 line-through mb-0.5">
               {sym}{initialPrice.toFixed(2)}
             </p>
           )}
-          {initialPrice > 0 && (
+          {initialPrice > 0 && !showConversion && (
             <p className="text-xs text-gray-400 mb-0.5">Initial</p>
           )}
         </div>
@@ -239,6 +337,74 @@ const ProductCard = ({ product, onRefresh, onDelete }) => {
         {historyOpen && (
           <div className="animate-fade-in">
             <PriceChart history={priceHistory} currency={sym} />
+          </div>
+        )}
+
+        {/* ── Feature 2: Compare Prices ── */}
+        <button
+          id={`compare-btn-${_id}`}
+          onClick={handleCompare}
+          className="flex items-center justify-between w-full text-xs text-gray-400
+                     hover:text-[#F97316] transition-colors pt-1 border-t border-gray-100 mt-1"
+        >
+          <span className="font-medium flex items-center gap-1">
+            🔍 Compare prices
+          </span>
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${compareOpen ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {compareOpen && (
+          <div className="animate-fade-in mt-1">
+            {/* Loading spinner */}
+            {compareLoading && (
+              <div className="flex items-center justify-center py-5 gap-2 text-xs text-gray-400">
+                <svg className="w-4 h-4 animate-spin text-[#F97316]" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Searching for best prices…
+              </div>
+            )}
+
+            {/* Results */}
+            {!compareLoading && compareResults !== null && (
+              <div className="border border-gray-100 rounded-xl overflow-hidden">
+                {compareResults.length === 0 ? (
+                  <p className="text-xs text-gray-400 px-4 py-4 text-center">
+                    No comparison results found.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-gray-50">
+                    {compareResults.map((result, idx) => (
+                      <li key={idx} className="px-3 py-2.5 flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-500 truncate">
+                            {result.displayLink}
+                          </p>
+                          <p className="text-xs text-gray-400 line-clamp-2 mt-0.5 leading-relaxed">
+                            {result.snippet}
+                          </p>
+                        </div>
+                        <a
+                          href={result.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold text-[#F97316] hover:underline shrink-0 mt-0.5"
+                        >
+                          View →
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

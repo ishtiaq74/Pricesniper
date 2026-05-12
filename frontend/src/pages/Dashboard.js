@@ -8,22 +8,27 @@ import { AnnouncementBar, Logo, Footer } from './HomePage';
 /**
  * Dashboard – authenticated main page of PriceSniper.
  *
- * Responsibilities:
- *  - Fetch the logged-in user's tracked products from the backend
- *  - Pass add / refresh / delete callbacks into child components
- *  - Display a responsive 2-col grid of ProductCard components
- *  - Show loading skeletons while fetching
- *  - Show an empty state when no products are tracked
- *  - Display stat cards (Products Tracked, Active Deals, Avg Savings)
- *  - Avg Savings card is clickable → expands a deal breakdown panel
- *  - Navbar shows user avatar pill with profile dropdown
+ * Feature additions:
+ *  - Currency selector dropdown (BDT default, stored in localStorage)
+ *  - Live exchange rates fetched from GET /api/products/rates on mount
+ *  - selectedCurrency + rates passed into every ProductCard
  */
+
+const CURRENCY_OPTIONS = ['BDT', 'USD', 'INR', 'EUR', 'GBP'];
+
 const Dashboard = () => {
   const [products, setProducts]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
   const [profileOpen, setProfileOpen]   = useState(false);
   const [savingsOpen, setSavingsOpen]   = useState(false);
+
+  // ── Currency Feature ──────────────────────────────────────────────────────
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    () => localStorage.getItem('ps_currency') || 'BDT'
+  );
+  const [rates, setRates]           = useState(null);  // { USD:1, BDT:110, ... }
+  const [ratesLoading, setRatesLoading] = useState(false);
 
   const { user, logout } = useAuth();
 
@@ -55,7 +60,7 @@ const Dashboard = () => {
         ).toFixed(2)
       : '0.00';
 
-  /* ── Fetch ─────────────────────────────────────────────────────── */
+  /* ── Fetch products ─────────────────────────────────────────────── */
   const fetchProducts = useCallback(async () => {
     try {
       const { data } = await axios.get('/api/products');
@@ -67,7 +72,27 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  /* ── Fetch exchange rates ───────────────────────────────────────── */
+  const fetchRates = useCallback(async () => {
+    setRatesLoading(true);
+    try {
+      const { data } = await axios.get('/api/products/rates');
+      setRates(data.rates);
+    } catch (err) {
+      console.warn('Could not fetch exchange rates:', err.message);
+    } finally {
+      setRatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchProducts(); fetchRates(); }, [fetchProducts, fetchRates]);
+
+  /* ── Currency change handler ───────────────────────────────────── */
+  const handleCurrencyChange = (e) => {
+    const c = e.target.value;
+    setSelectedCurrency(c);
+    localStorage.setItem('ps_currency', c);
+  };
 
   /* ── Handlers ──────────────────────────────────────────────────── */
   const handleProductAdded      = (p)   => setProducts((prev) => [p, ...prev]);
@@ -163,9 +188,31 @@ const Dashboard = () => {
             </a>
           </div>
 
-          {/* Right: live badge + user pill */}
+          {/* Right: currency selector + live badge + user pill */}
           <div className="flex items-center gap-3">
-            {/* Live tracking */}
+
+            {/* ── Currency Selector (Feature 1) ── */}
+            <div className="relative flex items-center" onClick={(e) => e.stopPropagation()}>
+              <span className="absolute left-2.5 text-xs text-gray-400 pointer-events-none">
+                {ratesLoading ? '⟳' : '💱'}
+              </span>
+              <select
+                id="currency-selector"
+                value={selectedCurrency}
+                onChange={handleCurrencyChange}
+                className="pl-7 pr-2 py-1.5 text-xs font-semibold text-gray-700 bg-white
+                           border border-gray-200 rounded-lg appearance-none cursor-pointer
+                           hover:border-[#F97316]/50 focus:outline-none focus:ring-1
+                           focus:ring-[#F97316]/30 transition-all duration-200"
+                title="Display currency"
+              >
+                {CURRENCY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Live tracking badge */}
             <div className="hidden sm:flex items-center gap-1.5 bg-emerald-50 border border-emerald-200
                             text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -273,7 +320,6 @@ const Dashboard = () => {
                                  ? 'hover:border-[#F97316]/40 hover:shadow-md cursor-pointer'
                                  : 'cursor-default'}`}
                 >
-                  {/* Icon background */}
                   <div className="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100
                                   flex items-center justify-center text-xl shrink-0">
                     {stat.icon}
@@ -404,6 +450,8 @@ const Dashboard = () => {
                 product={product}
                 onRefresh={handleProductRefreshed}
                 onDelete={handleProductDeleted}
+                selectedCurrency={selectedCurrency}
+                rates={rates}
               />
             ))}
           </div>
