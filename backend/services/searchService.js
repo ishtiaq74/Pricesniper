@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { GOOGLE_API_KEY, GOOGLE_CX_ID } = require('../config/env');
 
 /**
  * searchService
@@ -17,8 +18,8 @@ const axios = require('axios');
  *                  Returns [] on any error — never throws.
  */
 const searchProduct = async (title) => {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const cx     = process.env.GOOGLE_CX_ID;
+  const apiKey = GOOGLE_API_KEY;
+  const cx     = GOOGLE_CX_ID;
 
   if (!apiKey || apiKey === 'your_key_here' || !cx || cx === 'your_cx_id_here') {
     console.warn('[searchService] GOOGLE_API_KEY or GOOGLE_CX_ID not configured — returning empty results.');

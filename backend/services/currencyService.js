@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { EXCHANGERATE_API_KEY } = require('../config/env');
 
 /**
  * currencyService
@@ -27,7 +28,7 @@ const getRates = async () => {
     return cachedRates;
   }
 
-  const apiKey = process.env.EXCHANGERATE_API_KEY;
+  const apiKey = EXCHANGERATE_API_KEY;
   if (!apiKey || apiKey === 'your_key_here') {
     console.warn('[currencyService] EXCHANGERATE_API_KEY not set — returning fallback rates.');
     // Return sensible fallback rates so the UI doesn't break without a key

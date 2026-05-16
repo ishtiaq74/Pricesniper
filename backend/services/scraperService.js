@@ -1,5 +1,6 @@
 const axios   = require('axios');
 const cheerio = require('cheerio');
+const { EBAY_APP_ID } = require('../config/env');
 
 // ---------------------------------------------------------------------------
 // Rotating User-Agent pool
@@ -175,7 +176,7 @@ const scrapeProductData = async (rawUrl) => {
   // Use the free eBay Shopping API (GetSingleItem) first; fall back to HTML scraping.
   if (url.includes('ebay.') && /\/itm\/\d+/.test(url)) {
     const itemId   = url.match(/\/itm\/(\d+)/)?.[1];
-    const ebayAppId = process.env.EBAY_APP_ID;
+    const ebayAppId = EBAY_APP_ID;
 
     if (ebayAppId && ebayAppId !== 'your_ebay_app_id_here') {
       // ── eBay Shopping API ────────────────────────────────────────────────────

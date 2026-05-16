@@ -1,17 +1,17 @@
-require('dotenv').config();
+require('../config/env');
 const mongoose = require('mongoose');
-require('./models/User');
-const Product = require('./models/Product');
+require('../models/User');
+const Product = require('../models/Product');
+const { connectDatabase } = require('../config/database');
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-  // Find a user-owned product with currentPrice set but no target yet
+connectDatabase().then(async () => {
   const product = await Product.findOneAndUpdate(
     {
       userId:       { $exists: true, $ne: null },
       currentPrice: { $gt: 0 },
-      title:        /Lenovo/i        // Lenovo: cur=$227.18, already confirmed scrapeable
+      title:        /Lenovo/i
     },
-    { alertSentAt: null, targetPrice: 300 }, // cur=$227.18 < target=$300 → will trigger
+    { alertSentAt: null, targetPrice: 300 },
     { new: true }
   ).populate('userId', 'email');
 

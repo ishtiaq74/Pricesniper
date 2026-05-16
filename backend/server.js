@@ -1,7 +1,9 @@
-require('dotenv').config();
+require('./config/env');
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
+const { PORT, FRONTEND_URL } = require('./config/env');
+const { connectDatabase } = require('./config/database');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const productRoutes = require('./routes/productRoutes');
 const authRoutes    = require('./routes/authRoutes');
@@ -14,12 +16,11 @@ const app = express();
 // ---------------------------------------------------------------------------
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL, // set to Vercel URL in Render dashboard after deploy
+  FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // allow non-browser tools (curl, Postman) and listed origins
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -37,22 +38,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth',     authRoutes);
 app.use('/api/products', productRoutes);
 
-// Health check
 app.get('/', (req, res) => res.json({ message: 'PriceSniper API is running 🎯' }));
+
+app.use(errorHandler);
 
 // ---------------------------------------------------------------------------
 // MongoDB Connection + Server Start
 // ---------------------------------------------------------------------------
-const PORT     = process.env.PORT     || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/pricesniper';
-
-mongoose
-  .connect(MONGO_URI)
+connectDatabase()
   .then(() => {
-    console.log('✅ MongoDB connected');
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
-      // Start background price-alert scheduler after DB is ready
       startAlertScheduler();
     });
   })

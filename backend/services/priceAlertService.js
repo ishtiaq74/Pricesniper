@@ -1,6 +1,7 @@
 const Product             = require('../models/Product');
 const { sendPriceAlert }  = require('./emailService');
 const { scrapeProductData } = require('./scraperService');
+const { ALERT_INTERVAL_MS } = require('../config/env');
 
 const TWENTY_FOUR_HRS = 24 * 60 * 60 * 1000;
 
@@ -113,7 +114,7 @@ const checkAndSendAlerts = async () => {
 // then repeats every ALERT_INTERVAL_MS (default: 30 min).
 // ---------------------------------------------------------------------------
 const startAlertScheduler = () => {
-  const intervalMs = parseInt(process.env.ALERT_INTERVAL_MS, 10) || 30 * 60 * 1000;
+  const intervalMs = parseInt(ALERT_INTERVAL_MS, 10) || 30 * 60 * 1000;
   const intervalMin = (intervalMs / 60000).toFixed(1);
   console.log(`[priceAlertService] Scheduler started — auto-scraping + checking every ${intervalMin} min(s).`);
 

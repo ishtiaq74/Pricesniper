@@ -6,10 +6,10 @@ const {
   refreshProduct,
   updateTargetPrice,
   deleteProduct,
+  getExchangeRates,
+  searchProducts,
 } = require('../controllers/scraperController');
 const { protect } = require('../middleware/authMiddleware');
-const { getRates }      = require('../services/currencyService');
-const { searchProduct } = require('../services/searchService');
 
 // All product routes require authentication
 router.use(protect);
@@ -39,27 +39,13 @@ router.delete('/:id', deleteProduct);
 // @route   GET  /api/products/rates
 // @desc    Returns cached USD-based exchange rates (refreshed every 1 hour)
 // ---------------------------------------------------------------------------
-router.get('/rates', async (req, res) => {
-  try {
-    const rates = await getRates();
-    res.json({ rates });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch exchange rates', error: err.message });
-  }
-});
+router.get('/rates', getExchangeRates);
 
 // ---------------------------------------------------------------------------
 // FEATURE 2 — Product Price Comparison (Google Custom Search)
 // @route   GET  /api/products/search?q=productTitle
 // @desc    Returns up to 5 web results for the given product title
 // ---------------------------------------------------------------------------
-router.get('/search', async (req, res) => {
-  const q = req.query.q || '';
-  if (!q.trim()) return res.status(400).json({ message: 'Query parameter "q" is required' });
-
-  const results = await searchProduct(q); // never throws
-  res.json({ results });
-});
+router.get('/search', searchProducts);
 
 module.exports = router;
-

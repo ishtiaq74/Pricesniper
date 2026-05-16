@@ -1,9 +1,9 @@
 /**
  * testEmail.js — Quick standalone test for the PriceSniper email system.
- * Run with: node testEmail.js
+ * Run with: node scripts/testEmail.js
  */
-require('dotenv').config();
-const { sendPriceAlert } = require('./services/emailService');
+const { EMAIL_USER, BREVO_API_KEY } = require('../config/env');
+const { sendPriceAlert } = require('../services/emailService');
 
 const mockProduct = {
   title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
@@ -14,13 +14,13 @@ const mockProduct = {
   url: 'https://www.amazon.com/dp/B09XS7JWHH',
 };
 
-const recipientEmail = process.env.EMAIL_USER; // sends to yourself
+const recipientEmail = EMAIL_USER;
 
 console.log('📧 PriceSniper Email Test');
 console.log('─────────────────────────');
-console.log(`  Sender  : ${process.env.EMAIL_USER}`);
+console.log(`  Sender  : ${EMAIL_USER}`);
 console.log(`  To      : ${recipientEmail}`);
-console.log(`  API Key : ${process.env.BREVO_API_KEY ? '✅ Set (' + process.env.BREVO_API_KEY.slice(0, 12) + '…)' : '❌ NOT SET'}`);
+console.log(`  API Key : ${BREVO_API_KEY ? '✅ Set (' + BREVO_API_KEY.slice(0, 12) + '…)' : '❌ NOT SET'}`);
 console.log('─────────────────────────');
 console.log('Sending test alert…\n');
 

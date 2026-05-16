@@ -1,13 +1,12 @@
-require('dotenv').config();
+require('../config/env');
 const mongoose = require('mongoose');
-const Product  = require('./models/Product');
+const Product  = require('../models/Product');
+const { connectDatabase } = require('../config/database');
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
-  // Clear ALL products' alertSentAt regardless of state
+connectDatabase().then(async () => {
   const result = await Product.updateMany({}, { $set: { alertSentAt: null } });
   console.log(`✅ Cleared alertSentAt on ALL ${result.modifiedCount} product(s).`);
 
-  // Show current alert-eligible products
   const eligible = await Product.find({
     targetPrice:  { $gt: 0 },
     currentPrice: { $gt: 0 },

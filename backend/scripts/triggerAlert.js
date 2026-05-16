@@ -1,14 +1,16 @@
 /**
  * triggerAlert.js — Force-fires the price alert check immediately.
  * Bypasses the 24-hour cooldown so you can test right now.
+ * Run with: node scripts/triggerAlert.js
  */
-require('dotenv').config();
+require('../config/env');
 const mongoose = require('mongoose');
-require('./models/User');
-const Product            = require('./models/Product');
-const { sendPriceAlert } = require('./services/emailService');
+require('../models/User');
+const Product            = require('../models/Product');
+const { sendPriceAlert } = require('../services/emailService');
+const { connectDatabase } = require('../config/database');
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
+connectDatabase().then(async () => {
   console.log('\n🔍 Checking all products for alert condition (currentPrice <= targetPrice)…\n');
 
   const alertProducts = await Product.find({

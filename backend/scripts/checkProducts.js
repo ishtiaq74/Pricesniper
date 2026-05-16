@@ -1,9 +1,10 @@
-require('dotenv').config();
+require('../config/env');
 const mongoose = require('mongoose');
-require('./models/User');          // register User schema for populate
-const Product = require('./models/Product');
+require('../models/User');
+const Product = require('../models/Product');
+const { connectDatabase } = require('../config/database');
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
+connectDatabase().then(async () => {
   const products = await Product.find({ userId: { $exists: true } }).populate('userId', 'email');
   console.log('\n📦 Product Alert Status:\n');
   products.forEach(p => {

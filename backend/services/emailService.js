@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { BREVO_API_KEY, EMAIL_FROM_NAME, EMAIL_USER } = require('../config/env');
 
 /**
  * emailService — uses Brevo's Transactional Email REST API (HTTPS port 443).
@@ -23,7 +24,7 @@ const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
  * @param {object} product  - Mongoose Product document
  */
 const sendPriceAlert = async (toEmail, product) => {
-  const apiKey = process.env.BREVO_API_KEY;
+  const apiKey = BREVO_API_KEY;
 
   if (!apiKey) {
     console.warn('[emailService] BREVO_API_KEY not set — skipping email.');
@@ -33,8 +34,8 @@ const sendPriceAlert = async (toEmail, product) => {
   const currency = product.currency || '$';
   const currentPrice = `${currency}${product.currentPrice.toFixed(2)}`;
   const targetPrice  = `${currency}${product.targetPrice.toFixed(2)}`;
-  const senderName   = process.env.EMAIL_FROM_NAME || 'PriceSniper';
-  const senderEmail  = process.env.EMAIL_USER;
+  const senderName   = EMAIL_FROM_NAME || 'PriceSniper';
+  const senderEmail  = EMAIL_USER;
 
   const htmlBody = `
     <!DOCTYPE html>
