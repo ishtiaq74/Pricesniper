@@ -1,9 +1,15 @@
 node_modules/
 build/
-.env
-.env.development
-.env.production
+
+# Local overrides — never commit
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Development env (localhost URLs)
+.env.development
+
+# .env.production is committed intentionally — it only contains the public
+# REACT_APP_API_URL pointing to the backend. No secrets live here.
+# Real secrets (Brevo, Google, etc.) are set in Vercel's dashboard.

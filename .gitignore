@@ -1,4 +1,13 @@
-node_modules
+# Root
+node_modules/
+dist/
+build/
+
+# Environment secrets — NEVER commit these
 .env
-dist
-build
+backend/.env
+backend/.env.*
+
+# OS
+.DS_Store
+Thumbs.db
